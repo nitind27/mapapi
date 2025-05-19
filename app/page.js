@@ -1,103 +1,148 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import { GoogleMap, LoadScript, DirectionsService, DirectionsRenderer, Marker } from "@react-google-maps/api";
+
+const containerStyle = {
+  width: "100%",
+  height: "500px"
+};
+
+export default function Page() {
+  const [start, setStart] = useState({ lat: "", lng: "" });
+  const [end, setEnd] = useState({ lat: "", lng: "" });
+  const [directions, setDirections] = useState(null);
+  const [turnPoints, setTurnPoints] = useState([]);
+  const [routeRequested, setRouteRequested] = useState(false);
+
+  const handleInput = (e) => {
+    const { name, value } = e.target;
+    if (name.startsWith("start")) {
+      setStart({ ...start, [name.split("-")[1]]: value });
+    } else {
+      setEnd({ ...end, [name.split("-")[1]]: value });
+    }
+  };
+
+  const handleRoute = () => {
+    setDirections(null);
+    setTurnPoints([]);
+    setRouteRequested(true);
+  };
+
+  const extractTurnPoints = (result) => {
+    if (!result?.routes?.[0]?.legs?.[0]?.steps) return;
+    const steps = result.routes[0].legs[0].steps;
+    const turnMarkers = steps
+      .filter(
+        (step) =>
+          step.maneuver &&
+          (step.maneuver.includes("left") || step.maneuver.includes("right"))
+      )
+      .map((step, idx) => ({
+        position: {
+          lat: step.end_location.lat(),
+          lng: step.end_location.lng()
+        },
+        maneuver: step.maneuver,
+        idx
+      }));
+    setTurnPoints(turnMarkers);
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
+    <div style={{ padding: 20 }}>
+      <h2>Route Turns Highlighter</h2>
+      <div style={{ marginBottom: 10 }}>
+        <input
+          name="start-lat"
+          placeholder="Start Latitude"
+          value={start.lat}
+          onChange={handleInput}
+          style={{ marginRight: 5 }}
         />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+        <input
+          name="start-lng"
+          placeholder="Start Longitude"
+          value={start.lng}
+          onChange={handleInput}
+          style={{ marginRight: 15 }}
+        />
+        <input
+          name="end-lat"
+          placeholder="End Latitude"
+          value={end.lat}
+          onChange={handleInput}
+          style={{ marginRight: 5 }}
+        />
+        <input
+          name="end-lng"
+          placeholder="End Longitude"
+          value={end.lng}
+          onChange={handleInput}
+          style={{ marginRight: 15 }}
+        />
+        <button
+          onClick={handleRoute}
+          disabled={
+            !start.lat || !start.lng || !end.lat || !end.lng
+          }
+        >
+          Enter
+        </button>
+      </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+      <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}>
+        <GoogleMap
+          mapContainerStyle={containerStyle}
+          center={{
+            lat: Number(start.lat) || 28.6139,
+            lng: Number(start.lng) || 77.2090
+          }}
+          zoom={13}
+        >
+          {routeRequested && start.lat && start.lng && end.lat && end.lng && (
+            <DirectionsService
+              options={{
+                destination: { lat: Number(end.lat), lng: Number(end.lng) },
+                origin: { lat: Number(start.lat), lng: Number(start.lng) },
+                travelMode: "DRIVING"
+              }}
+              callback={(result, status) => {
+                if (status === "OK") {
+                  setDirections(result);
+                  extractTurnPoints(result);
+                  setRouteRequested(false);
+                }
+              }}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          )}
+
+          {directions && (
+            <DirectionsRenderer
+              options={{
+                directions: directions
+              }}
+            />
+          )}
+
+          {turnPoints.map((point) => (
+            <Marker
+              key={point.idx}
+              position={point.position}
+              label={
+                point.maneuver.includes("left") ? "L" : "R"
+              }
+              icon={{
+                url:
+                  point.maneuver.includes("left")
+                    ? "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                    : "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
+              }}
+            />
+          ))}
+        </GoogleMap>
+      </LoadScript>
     </div>
   );
 }
