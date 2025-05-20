@@ -55,7 +55,7 @@ export default function Page() {
     if (!result?.routes?.[0]?.overview_path) return;
     const path = result.routes[0].overview_path.map(latLngToObj);
 
-    const interval = 10; // meters
+    const interval = 500; // meters
     let sampledPoints = [];
     if (path.length === 0) return;
 
@@ -174,7 +174,7 @@ export default function Page() {
             lat: Number(start.lat) || 28.6139,
             lng: Number(start.lng) || 77.2090
           }}
-          zoom={13}
+          zoom={25}
         >
           {routeRequested && start.lat && start.lng && end.lat && end.lng && (
             <DirectionsService
@@ -207,11 +207,11 @@ export default function Page() {
             </div>
           )}
 
-          {routePoints.slice(0, 2000).map((point, idx) => (
+          {routePoints.slice(0, 20000).map((point, idx) => (
             <Marker
               key={idx}
               position={{ lat: point.latitude, lng: point.longitude }}
-              title={point.latitude + "," + " " + point.longitude}
+             
               icon={{
                 url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
                 scaledSize: { width: 20, height: 20 }
